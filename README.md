@@ -1,5 +1,5 @@
 # PROJETO DE IRRIGAÇÃO - IoT
-- **Integrantes**: Ana Julia Castelo Branco, Graziela Torres, Henrique Xavier Klappoth, Marina Rosa Oliveira, Rodrigo Xavier Klappoth, Sophia Eggert Freire da Rocha, 
+- **Integrantes**: Ana Julia Castelo Branco, Graziela Torres, Henrique Xavier Klappoth, Marina Rosa Oliveira, Rodrigo Xavier Klappoth e Sophia Eggert Freire da Rocha
 - **Disciplina**: Internet das Coisas
 - **Professor**: Edson Vaz Lopes
 - **Avaliação**: N1 - Projeto Médio

@@ -43,9 +43,9 @@ Comando → Bomba simulada (LED)
 |Componente|Função|
 |---|---|
 |ESP32 DevKit v1|Microcontrolador principal (Wi-Fi)|
-|Sensor de umidade do solo|Leitura analógica da umidade|
+|Sensor de umidade do solo (ESP32)|Leitura analógica da umidade|
 |LED + Resistor 220 ohms|Simula a bomba/válvula|
-|Proboard + jumpers|Montagem do circuito|
+|Protoboard + jumpers|Montagem do circuito|
 |Cabo USB|Programação e alimentação|
 
 ## Primeiro risco técnico
@@ -88,17 +88,15 @@ Comando → Bomba simulada (LED)
 ## Estrutura do Repositório
 ```
 irrigacao-iot/
+├── back /
+│ └── server.js 
 ├── firmware/
-│ ├── irrigacao.ino # Código
-principal do ESP32
-│ └── libraries.txt # Bibliotecas
-necessárias
-├── dashboard/
-│ └── index.html # Painel web
-de monitoramento e controle
+│ ├── irrigacao.ino # Código principal do ESP32
+│ └── libraries.txt # Bibliotecas necessárias
+├── front/
+│ └── index.html # Painel web de monitoramento e controle
 ├── docs/
-│ └── esquema_conexoes.md # Diagrama de
-pinos e conexões
+│ └── esquema_conexoes.md # Diagrama de pinos e conexões
 └── README.md
 ```
 

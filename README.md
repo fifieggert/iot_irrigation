@@ -46,10 +46,11 @@ Comando → Bomba simulada (LED)
 |LED + Resistor 220 ohms|Simula a bomba/válvula|
 |Protoboard + jumpers|Montagem do circuito|
 |Cabo USB|Programação e alimentação|
+|Bomba de irrigação 12V Arduino MJ|Irrigação|
+|Mangueira|Conduzir a água da fonte até a planta|
 
 ## Primeiro risco técnico
 - **Risco**: Sensor resistivo pode corroer rapidamente devido ao contato constante com solo úmido, comprometendo a leitura.
-- **Mitigação**: usar sensor capacitivo (dispositivo eletrônico capaz de detectar a presença de objetos — metálicos ou não-metálicos — sem precisar encostar neles) ou simular com potenciômetro para a N1.
 
 ## Como executar?
 ### 1. Firmware (ESP32)

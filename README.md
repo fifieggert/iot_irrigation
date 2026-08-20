@@ -18,8 +18,7 @@ Pessoas que cuidam de plantas e desejam monitorar remotamente a umidade do solo 
 Construir um projeto com ESP32 que:
 - Leia a umidade do solo em tempo real
 - Publique os dados via MQTT com telemetria
-- Permita acionar a bomba (LED simulado) por comando remoto
-- Opere em modo automático (baseado em limites) ou manual
+- Permita acionar a bomba de irrigação por comando remoto
 - Reconecte automaticamente em caso de falha de rede ou broker
 
 ## Arquitetura
@@ -37,7 +36,7 @@ Comando → Bomba simulada (LED)
 |irrigacao/umidade|ESP32 → WEB|JSON com umidade, estado e modo|
 |irrigacao/status|ESP32 → WEB|Confirmação de estado da bomba|
 |irrigacao/alerta|ESP32 → WEB|Alertas (solo seco, segurança, sensor)|
-|irrigacao/bomba|ESP32 → WEB|Comandos: `on`, `off`, `auto`|
+|irrigacao/bomba|ESP32 → WEB|Comandos: `on`, `off`|
 
 ## Componentes previstos
 |Componente|Função|
@@ -77,7 +76,7 @@ Comando → Bomba simulada (LED)
 * ESP32 ligado e conectado → Logs aparecem no monitor serial
 * Abrir `dashboard\index.html` → Painel conecta ao MQTT
 * Aguardar leituras chegarem (de 5 em 5 segundos)
-* Testar botões (irrigar agora, parar, modo automático)
+* Testar botões (irrigar agora, parar)
 * Verificar confirmações de estado no painel
 
 ## Broker MQTT
@@ -104,7 +103,6 @@ irrigacao-iot/
 * Usar apenas baixa tensão (3,3V do ESP32)
 * Nunca conectar à rede elétrica residencial
 * Manter água distante da placa e do cabo USB
-* Conferir polaridade do LED antes de energizar
 
 ## Gestão de atividades
 * [Trello](https://trello.com/b/UaGTBRzA/iotirrigation)

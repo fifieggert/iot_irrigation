@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Irrigação - IoT</title>
+<style>
+  :root {
+    --bg: #f4f6f5;
+    --card: #ffffff;
+    --linha: #e2e6e4;
+    --texto: #1e2a26;
+    --suave: #6b7a74;
+    --verde: #1d9e75;
+    --verde-escuro: #0f6e56;
+    --vermelho: #c0392b;
+    --ambar: #b8860b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--texto);
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between;
+           flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  h1 small { display: block; font-size: 13px; color: var(--suave); font-weight: 400; margin-top: 3px; }
+  .badge { font-size: 13px; padding: 6px 12px; border-radius: 999px;
+           border: 1px solid var(--linha); background: var(--card); }
+  .badge.on  { color: var(--verde-escuro); border-color: var(--verde); }
+  .badge.off { color: var(--vermelho); border-color: var(--vermelho); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--linha);
+          border-radius: 12px; padding: 18px; }
+  .rotulo { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+            color: var(--suave); margin-bottom: 10px; }
+
+  .valor { font-size: 46px; font-weight: 600; line-height: 1; }
+  .valor span { font-size: 20px; color: var(--suave); font-weight: 400; }
+  .barra { height: 10px; background: var(--bg); border-radius: 999px;
+           overflow: hidden; margin-top: 14px; }
+  .barra i { display: block; height: 100%; width: 0%; background: var(--verde);
+             transition: width .4s ease, background .4s ease; }
+  .meta { font-size: 12px; color: var(--suave); margin-top: 10px; }
+
+  .estado { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .luz { width: 22px; height: 22px; border-radius: 50%;
+         background: #cfd6d3; border: 1px solid var(--linha); flex-shrink: 0; }
+  .luz.ativa { background: var(--verde); border-color: var(--verde-escuro); }
+  .estado b { font-size: 20px; font-weight: 600; }
+
+  .botoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  button { flex: 1 1 120px; padding: 11px 14px; font-size: 14px; font-family: inherit;
+           border-radius: 8px; border: 1px solid var(--linha); background: var(--card);
+           color: var(--texto); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--suave); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primario { background: var(--verde); border-color: var(--verde); color: #fff; }
+  button.perigo   { background: var(--vermelho); border-color: var(--vermelho); color: #fff; }
+
+  .lista { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+  .lista li { padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 14px; }
+  .lista li:last-child { border-bottom: none; }
+  .lista time { display: block; font-size: 11px; color: var(--suave); margin-bottom: 2px; }
+  .tipo { font-weight: 600; }
+  .tipo.solo_seco { color: var(--ambar); }
+  .tipo.seguranca { color: var(--vermelho); }
+  .tipo.sensor    { color: var(--vermelho); }
+  .vazio { color: var(--suave); font-size: 14px; }
+
+  footer { margin-top: 20px; font-size: 12px; color: var(--suave); word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Painel de irrigação
+      <small>Grupo 2 &middot; Irrigação de vaso &middot; Internet das Coisas</small>
+    </h1>
+    <span class="badge" id="conexao">Conectando…</span>
+  </header>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="rotulo">Umidade do solo</div>
+      <div class="valor"><span id="umidade">--</span><span>%</span></div>
+      <div class="barra"><i id="barra"></i></div>
+      <div class="meta" id="leitura">Aguardando primeira leitura…</div>
+    </div>
+
+    <div class="card">
+      <div class="rotulo">Bomba (LED)</div>
+      <div class="estado">
+        <div class="luz" id="luz"></div>
+        <b id="estadoBomba">--</b>
+      </div>
+      <div class="meta">Modo atual: <b id="modo">--</b></div>
+      <div class="botoes">
+        <button class="primario" id="btnLigar"   onclick="enviar('on')">Irrigar agora</button>
+        <button class="perigo"   id="btnParar"   onclick="enviar('off')">Parar</button>
+        <button                  id="btnAuto"    onclick="enviar('auto')">Automático</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="rotulo">Alertas</div>
+    <ul class="lista" id="alertas"></ul>
+    <div class="vazio" id="semAlertas">Nenhum alerta recebido.</div>
+  </div>
+
+  <footer>
+    Broker: <span id="urlBroker"></span><br>
+    Tópicos: <span id="baseTopico"></span>/#
+  </footer>
+
+</div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+// ============================================================
+//  CONFIGURAÇÃO - precisa bater com o firmware do ESP32
+// ============================================================
+
+const TOPICO_BASE = "irrigacao/g2fifi";
+
+// Detecção automática da porta:
+//  - página aberta em https (GitHub Pages) -> WebSocket seguro (wss, 8884)
+//  - página aberta local (file:// ou http) -> WebSocket comum (ws, 8000)
+// O navegador BLOQUEIA ws:// dentro de uma página https, por isso a troca.
+const SEGURO = location.protocol === "https:";
+const URL_BROKER = SEGURO
+  ? "wss://broker.hivemq.com:8884/mqtt"
+  : "ws://broker.hivemq.com:8000/mqtt";
+
+const T_UMIDADE = TOPICO_BASE + "/umidade";
+const T_STATUS  = TOPICO_BASE + "/status";
+const T_ALERTA  = TOPICO_BASE + "/alerta";
+const T_BOMBA   = TOPICO_BASE + "/bomba";
+
+const TEMPO_SEM_DADOS = 15000; // avisa se o ESP32 sumir por 15 s
+
+// ============================================================
+
+document.getElementById("urlBroker").textContent = URL_BROKER;
+document.getElementById("baseTopico").textContent = TOPICO_BASE;
+
+const el = id => document.getElementById(id);
+let ultimaLeitura = 0;
+let cliente = null;
+
+function statusConexao(texto, classe) {
+  const b = el("conexao");
+  b.textContent = texto;
+  b.className = "badge" + (classe ? " " + classe : "");
+}
+
+function travarBotoes(travado) {
+  ["btnLigar", "btnParar", "btnAuto"].forEach(id => el(id).disabled = travado);
+}
+
+if (typeof mqtt === "undefined") {
+  statusConexao("Biblioteca MQTT não carregou", "off");
+  travarBotoes(true);
+} else {
+  conectar();
+}
+
+function conectar() {
+  travarBotoes(true);
+  const clientId = "painel-web-" + Math.random().toString(16).slice(2, 10);
+
+  cliente = mqtt.connect(URL_BROKER, {
+    clientId: clientId,
+    clean: true,
+    reconnectPeriod: 4000,
+    connectTimeout: 8000
+  });
+
+  cliente.on("connect", () => {
+    statusConexao("Conectado ao broker", "on");
+    travarBotoes(false);
+    cliente.subscribe([T_UMIDADE, T_STATUS, T_ALERTA], err => {
+      if (err) statusConexao("Falha ao assinar tópicos", "off");
+    });
+  });
+
+  cliente.on("reconnect", () => statusConexao("Reconectando…"));
+  cliente.on("offline",   () => { statusConexao("Sem conexão", "off"); travarBotoes(true); });
+  cliente.on("error",     e  => { statusConexao("Erro: " + e.message, "off"); });
+
+  cliente.on("message", (topico, payload) => {
+    let dados;
+    try { dados = JSON.parse(payload.toString()); }
+    catch { return; } // ignora mensagem que não for JSON
+
+    if (topico === T_UMIDADE) tratarTelemetria(dados);
+    else if (topico === T_STATUS) tratarStatus(dados);
+    else if (topico === T_ALERTA) tratarAlerta(dados);
+  });
+}
+
+function tratarTelemetria(d) {
+  ultimaLeitura = Date.now();
+
+  if (typeof d.umidade === "number") {
+    el("umidade").textContent = d.umidade;
+    const barra = el("barra");
+    barra.style.width = Math.max(0, Math.min(100, d.umidade)) + "%";
+    barra.style.background = d.umidade <= 30 ? "#c0392b"
+                           : d.umidade <= 60 ? "#b8860b"
+                           : "#1d9e75";
+  }
+  el("leitura").textContent =
+    "Atualizado às " + agora() + (d.raw !== undefined ? "  ·  ADC " + d.raw : "");
+
+  if (d.estado) pintarBomba(d.estado);
+  if (d.modo)   el("modo").textContent = d.modo === "auto" ? "automático" : "manual";
+}
+
+function tratarStatus(d) {
+  if (d.online === false) {
+    statusConexao("ESP32 desconectado", "off");
+    return;
+  }
+  if (d.bomba) pintarBomba(d.bomba);
+  if (d.modo)  el("modo").textContent = d.modo === "auto" ? "automático" : "manual";
+}
+
+function pintarBomba(estado) {
+  const ligada = estado === "on";
+  el("luz").className = "luz" + (ligada ? " ativa" : "");
+  el("estadoBomba").textContent = ligada ? "Ligada" : "Desligada";
+}
+
+function tratarAlerta(d) {
+  el("semAlertas").style.display = "none";
+  const li = document.createElement("li");
+
+  const t = document.createElement("time");
+  t.textContent = agora();
+
+  const tipo = document.createElement("span");
+  tipo.className = "tipo " + (d.tipo || "");
+  tipo.textContent = (d.tipo || "alerta").replace("_", " ") + ": ";
+
+  li.appendChild(t);
+  li.appendChild(tipo);
+  li.appendChild(document.createTextNode(d.mensagem || ""));
+
+  const lista = el("alertas");
+  lista.insertBefore(li, lista.firstChild);
+  while (lista.children.length > 30) lista.removeChild(lista.lastChild);
+}
+
+function enviar(comando) {
+  if (!cliente || !cliente.connected) return;
+  cliente.publish(T_BOMBA, comando);
+}
+
+function agora() {
+  return new Date().toLocaleTimeString("pt-BR");
+}
+
+// Avisa se as leituras pararem de chegar (ESP32 caiu ou perdeu o Wi-Fi)
+setInterval(() => {
+  if (ultimaLeitura && Date.now() - ultimaLeitura > TEMPO_SEM_DADOS) {
+    el("leitura").textContent = "Sem leituras há mais de 15 s — verifique o ESP32.";
+  }
+}, 5000);
+</script>
+</body>
+</html>

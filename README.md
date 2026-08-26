@@ -38,17 +38,6 @@ Comando → Bomba simulada (LED)
 |irrigacao/alerta|ESP32 → WEB|Alertas (solo seco, segurança, sensor)|
 |irrigacao/bomba|ESP32 → WEB|Comandos: `on`, `off`|
 
-## Componentes previstos
-|Componente|Função|
-|---|---|
-|ESP32 DevKit v1|Microcontrolador principal (Wi-Fi)|
-|Sensor de umidade do solo (ESP32)|Leitura analógica da umidade|
-|LED + Resistor 220 ohms|Simula a bomba/válvula|
-|Protoboard + jumpers|Montagem do circuito|
-|Cabo USB|Programação e alimentação|
-|Bomba de irrigação 12V Arduino MJ|Irrigação|
-|Mangueira|Conduzir a água da fonte até a planta|
-
 ## Primeiro risco técnico
 - **Risco**: Sensor resistivo pode corroer rapidamente devido ao contato constante com solo úmido, comprometendo a leitura.
 

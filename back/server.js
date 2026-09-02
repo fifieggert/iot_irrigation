@@ -1,1 +1,0 @@
-// Consulta/Envio de dados para o broker

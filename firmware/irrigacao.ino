@@ -36,7 +36,14 @@ const char* TOPICO_BOMBA   = TOPICO_BASE "/bomba";    // WEB -> ESP32
 // GPIO 34 é do ADC1. NÃO troque para 0/2/4/12-15/25-27 (ADC2):
 // o ADC2 para de funcionar quando o Wi-Fi está ligado.
 const int PINO_SENSOR = 34;
-const int PINO_BOMBA  = 23;   // LED + resistor 220 ohms
+const int PINO_BOMBA  = 23;   // IN do modulo rele
+const int PINO_LED    = 2;    // LED onboard da placa (nao precisa de fio)
+// Se um dia ligar um LED externo, troque para 22 e ponha o resistor de 220 ohms.
+
+// A maioria dos modulos rele azuis (inclusive o de 2 canais) aciona em
+// nivel BAIXO: IN em LOW fecha o contato. Se a bomba ligar sozinha ao
+// energizar a placa, este valor esta errado -- troque para false.
+const bool RELE_ATIVO_BAIXO = true;
 
 // ---------------- PARÂMETROS ----------------
 
@@ -140,7 +147,9 @@ void setBomba(bool ligar, const char* origem) {
   if (ligar == bombaLigada) return;
 
   bombaLigada = ligar;
-  digitalWrite(PINO_BOMBA, ligar ? HIGH : LOW);
+  bool nivel = RELE_ATIVO_BAIXO ? !ligar : ligar;
+  digitalWrite(PINO_BOMBA, nivel ? HIGH : LOW);
+  digitalWrite(PINO_LED, ligar ? HIGH : LOW);   // LED sempre segue a bomba
   if (ligar) bombaLigadaEm = millis();
 
   publicarStatus(origem);
@@ -217,7 +226,10 @@ void setup() {
   Serial.println("\n=== Irrigacao IoT - ESP32 ===");
 
   pinMode(PINO_BOMBA, OUTPUT);
-  digitalWrite(PINO_BOMBA, LOW);
+  pinMode(PINO_LED, OUTPUT);
+  // Deixa o rele desligado ANTES de qualquer outra coisa no boot.
+  digitalWrite(PINO_BOMBA, RELE_ATIVO_BAIXO ? HIGH : LOW);
+  digitalWrite(PINO_LED, LOW);
   analogReadResolution(12);   // 0 a 4095
 
   clientId = "esp32-irrig-" + String((uint32_t)ESP.getEfuseMac(), HEX);

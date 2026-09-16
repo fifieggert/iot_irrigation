@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Float, String, DateTime
 from sqlalchemy.sql import func
-from app.database import Base
+from database import Base
 
 class TelemetryLog(Base):
     __tablename__ = "telemetry_logs"

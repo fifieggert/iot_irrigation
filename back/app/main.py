@@ -6,11 +6,11 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.config import settings
-from app.database import engine, Base, get_db
-from app.models import TelemetryLog, AlertLog
-from app.schemas import TelemetryRead, AlertRead, PumpCommand
-from app.mqtt import start_mqtt, stop_mqtt, mqtt_client, ultimo_status
+from config import settings
+from database import engine, Base, get_db
+from models import TelemetryLog, AlertLog
+from schemas import TelemetryRead, AlertRead, PumpCommand
+from mqtt import start_mqtt, stop_mqtt, mqtt_client, ultimo_status
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("api")
@@ -83,3 +83,11 @@ def control_pump(cmd: PumpCommand):
 
     mqtt_client.publish(settings.TOPICO_BOMBA, comando)
     return {"status": "success", "topico": settings.TOPICO_BOMBA, "command_sent": comando}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

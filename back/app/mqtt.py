@@ -3,9 +3,9 @@ import logging
 
 import paho.mqtt.client as mqtt
 
-from app.config import settings
-from app.database import SessionLocal
-from app.models import TelemetryLog, AlertLog
+from config import settings
+from database import SessionLocal
+from models import TelemetryLog, AlertLog
 
 log = logging.getLogger("mqtt")
 

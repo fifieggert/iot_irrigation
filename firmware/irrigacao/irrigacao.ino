@@ -16,8 +16,8 @@
 // ---------------- CONFIGURAÇÃO ----------------
 
 // No Wokwi o Wi-Fi é sempre este. Na placa real, troque pelo seu.
-const char* WIFI_SSID     = "Wokwi-GUEST";
-const char* WIFI_PASSWORD = "";
+const char* WIFI_SSID     = "iPhone de Rodrigo";
+const char* WIFI_PASSWORD = "macaco123";
 
 const char* MQTT_HOST = "broker.hivemq.com";
 const int   MQTT_PORT = 1883;

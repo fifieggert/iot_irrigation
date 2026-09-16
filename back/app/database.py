@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from app.config import settings
+from config import settings
 
 # pool_pre_ping evita erros de conexao derrubada pelo pooler do Supabase.
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, pool_recycle=300)

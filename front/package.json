@@ -1,0 +1,14 @@
+{
+  "name": "irrigacao-front",
+  "private": true,
+  "description": "Painel web de irrigação (HTML + CSS + TypeScript puros)",
+  "scripts": {
+    "start": "serve -l 5500",
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "serve": "^14.2.6",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,1 +1,84 @@
-<!-- Tela de visualização/manipulação de status da bomba, etc -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#fdf9f2">
+  <title>Painel de Irrigação</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-gotas" viewBox="0 0 24 24">
+        <path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/>
+        <path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/>
+      </symbol>
+      <symbol id="i-alerta" viewBox="0 0 24 24">
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+        <path d="M12 9v4"/><path d="M12 17h.01"/>
+      </symbol>
+      <symbol id="i-ok" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+      </symbol>
+      <symbol id="i-offline" viewBox="0 0 24 24">
+        <path d="m2 2 20 20"/>
+        <path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/>
+        <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/>
+        <path d="M5 13a10 10 0 0 1 5.24-2.76"/><path d="M12 20h.01"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <main class="app" data-nivel="sem-dados">
+
+    <p class="banner" id="banner" role="alert" hidden></p>
+
+    <!-- Leitura principal -->
+    <section class="hero" aria-labelledby="titulo">
+      <h1 class="title" id="titulo">Umidade do solo</h1>
+
+      <p class="reading">
+        <svg class="reading-icon" aria-hidden="true"><use href="#i-gotas"/></svg>
+        <span class="reading-value" id="valor">--</span>
+      </p>
+
+      <p class="status" id="status" aria-live="polite">
+        <svg class="status-icon" aria-hidden="true"><use id="statusIcone" href="#i-info"/></svg>
+        <span id="statusTexto">Aguardando primeira leitura</span>
+      </p>
+
+      <div class="bar" id="barra" role="progressbar" aria-labelledby="titulo"
+           aria-valuemin="0" aria-valuemax="100">
+        <div class="bar-fill" id="barraPreenchimento"></div>
+        <span class="bar-mark" style="left:30%" title="Liga a bomba (30%)"></span>
+        <span class="bar-mark" style="left:60%" title="Desliga a bomba (60%)"></span>
+      </div>
+
+      <button class="btn btn-primary" id="btnIrrigar" type="button">Irrigar agora</button>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btnParar" type="button">Parar</button>
+        <button class="btn btn-secondary" id="btnAuto" type="button">Modo automático</button>
+      </div>
+
+      <p class="pump" id="bombaModo">Bomba -- · Modo --</p>
+    </section>
+
+    <!-- Alertas -->
+    <section class="card" aria-labelledby="tAlertas">
+      <h2 class="card-title" id="tAlertas">Alertas recentes</h2>
+      <ul class="alerts" id="alertas"></ul>
+      <p class="empty" id="semAlertas">Nenhum alerta registrado.</p>
+    </section>
+
+  </main>
+
+  <script src="config.js"></script>
+  <script src="dist/main.js"></script>
+</body>
+</html>

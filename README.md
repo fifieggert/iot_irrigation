@@ -2,17 +2,17 @@
 - **Integrantes**: Ana Julia Castelo Branco, Graziela Torres, Henrique Xavier Klappoth, Marina Rosa Oliveira, Rodrigo Xavier Klappoth e Sophia Eggert Freire da Rocha
 - **Disciplina**: Internet das Coisas
 - **Professor**: Edson Vaz Lopes
-- **Avaliação**: N1 - Projeto Médio
+- **Avaliação**: N2 - Entrega parcial do Projeto Completo
 
 ## Família Temática
 - Grupo 2 - Irrigação de vaso
-- Evolução para N2/N3: Irrigação multizona
+- Evolução para N2/N3: Irrigação remota/automática + monitoramento de umidade e recebimento de calor
 
 ## Problema
-Plantas em vasos são frequentemente prejudicadas por irrigação incorreta, tanto por excesso quanto por falta de água. Sem monitoramento, o cuidador depende de rotinas manuais que podem falhar por esquecimento ou outras eventualidades. O objetivo do projeto é permitir a irrigação de forma remota, monitorando a umidade do solo para determinar a necessidade (ou não) de irrigação.
+Plantas em vasos são frequentemente prejudicadas por irrigação incorreta, tanto por excesso quanto por falta de água. Sem monitoramento, o cuidador depende de rotinas manuais que podem falhar por esquecimento ou outras eventualidades. O objetivo do projeto é permitir a irrigação de forma remota, monitorando a umidade do solo para determinar a necessidade (ou não) de irrigação. Além disso, nosso sistema se propõe a monitorar a quantidade de calor que a planta recebe e identificar se ela tem recebido menos do que o necessário (se não receber calor por alguns dias, um alerta é emitido ao usuário para que a planta seja movido para um lugar ensolarado).
 
 ## Usuário/Contexto de Uso
-Pessoas que cuidam de plantas e desejam monitorar remotamente a umidade do solo e controlar a irrigação via painel web, sem precisar estar presente.
+Pessoas que cuidam de plantas e desejam monitorar remotamente a umidade do solo/incidência de luz solar na planta e controlar a irrigação via painel web, sem precisar estar presente.
 
 ## Objetivo da N1
 Construir um projeto com ESP32 que:
@@ -21,13 +21,27 @@ Construir um projeto com ESP32 que:
 - Permita acionar a bomba de irrigação por comando remoto
 - Reconecte automaticamente em caso de falha de rede ou broker
 
+## Objetivo N2
+Complementar projeto da N1, incluindo um ESP32 que:
+- Leia a incidência de calor sobre a planta;
+- Publique os dados de calor via MQTT com telemetria;
+- Envie uma notificação ao usuário caso muitos dias se passem sem luz solar;
+
+Além disso, deve ser implementado:
+- Sistema de login na interface gráfica;
+- Segurança nos endpoints do backend que fazem a comunicação com o Broker/ESP32.
+
 ## Arquitetura
 ```
 Sensor de Umidade → ESP32 → Firmware → Wi-Fi → MQTT Broker (HiveMQ) 
 ↓ 
 Painel Web (dashboard/) 
 ↓ 
-Comando → Bomba simulada (LED)
+Comando → Bomba de irrigação
+
+Sensor de Calor  → ESP32 → Firmware → Wi-Fi → MQTT Broker (HiveMQ) 
+↓ 
+Painel Web (dashboard/)
 ```
 
 ## Tópicos MQTT

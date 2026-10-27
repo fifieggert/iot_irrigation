@@ -1,112 +1,81 @@
 # PROJETO DE IRRIGAÇÃO - IoT
+
 - **Integrantes**: Ana Julia Castelo Branco, Graziela Torres, Henrique Xavier Klappoth, Marina Rosa Oliveira, Rodrigo Xavier Klappoth e Sophia Eggert Freire da Rocha
 - **Disciplina**: Internet das Coisas
 - **Professor**: Edson Vaz Lopes
-- **Avaliação**: N2 - Entrega parcial do Projeto Completo
+- **Avaliação**: N2/N3 - Proposta de Upgrade e Projeto Completo
 
 ## Família Temática
 - Grupo 2 - Irrigação de vaso
-- Evolução para N2/N3: Irrigação remota/automática + monitoramento de umidade e recebimento de calor
+- Evolução para N2/N3: Irrigação remota/automática + monitoramento de umidade e sensor de calor/luminosidade.
 
 ## Problema
-Plantas em vasos são frequentemente prejudicadas por irrigação incorreta, tanto por excesso quanto por falta de água. Sem monitoramento, o cuidador depende de rotinas manuais que podem falhar por esquecimento ou outras eventualidades. O objetivo do projeto é permitir a irrigação de forma remota, monitorando a umidade do solo para determinar a necessidade (ou não) de irrigação. Além disso, nosso sistema se propõe a monitorar a quantidade de calor que a planta recebe e identificar se ela tem recebido menos do que o necessário (se não receber calor por alguns dias, um alerta é emitido ao usuário para que a planta seja movido para um lugar ensolarado).
+Plantas em vasos são frequentemente prejudicadas por irrigação incorreta, tanto por excesso quanto por falta de água. Sem monitoramento, o cuidador depende de rotinas manuais que podem falhar por esquecimento ou outras eventualidades. O objetivo do projeto é permitir a irrigação de forma remota, monitorando a umidade do solo para determinar a necessidade (ou não) de irrigação. Além disso, o sistema monitora a incidência de calor/luz solar na planta, emitindo um alerta caso passe muitos dias sem receber luz adequada.
 
 ## Usuário/Contexto de Uso
-Pessoas que cuidam de plantas e desejam monitorar remotamente a umidade do solo/incidência de luz solar na planta e controlar a irrigação via painel web, sem precisar estar presente.
+Pessoas que cuidam de plantas e desejam monitorar remotamente a umidade do solo e a incidência de luz solar, controlando a irrigação via painel web, sem precisar estar presentes.
 
-## Objetivo da N1
-Construir um projeto com ESP32 que:
-- Leia a umidade do solo em tempo real
-- Publique os dados via MQTT com telemetria
-- Permita acionar a bomba de irrigação por comando remoto
-- Reconecte automaticamente em caso de falha de rede ou broker
+## Estado Atual (Herdado da N1)
+- Leitura de umidade do solo em tempo real.
+- Publicação de dados via MQTT com telemetria.
+- Acionamento da bomba de irrigação por comando remoto.
+- Reconexão automática em caso de falha de rede/broker.
 
-## Objetivo N2
-Complementar projeto da N1, incluindo um ESP32 que:
-- Leia a incidência de calor sobre a planta;
-- Publique os dados de calor via MQTT com telemetria;
-- Envie uma notificação ao usuário caso muitos dias se passem sem luz solar;
+## Direção do Upgrade (N3)
+- Adição de sensor de calor/luminosidade para alerta de luz solar.
+- Backend estruturado (Python/FastAPI) integrado com banco de dados PostgreSQL hospedado no Supabase.
+- Sistema de login e segurança nos endpoints (com autenticação).
+- Orquestração completa utilizando Docker Compose.
+- Regras locais de segurança e tratamento de falhas testadas.
 
-Além disso, deve ser implementado:
-- Sistema de login na interface gráfica;
-- Segurança nos endpoints do backend que fazem a comunicação com o Broker/ESP32.
+## Arquitetura-Alvo
+- **Sensor de Umidade / Calor** → ESP32 → Firmware → Wi-Fi → MQTT Broker (HiveMQ) → Backend (API + Regras) → Banco de Dados (PostgreSQL / Supabase) → Painel Web (Dashboard).
 
-## Arquitetura
-```
-Sensor de Umidade → ESP32 → Firmware → Wi-Fi → MQTT Broker (HiveMQ) 
-↓ 
-Painel Web (dashboard/) 
-↓ 
-Comando → Bomba de irrigação
+## Tópicos MQTT (Contrato v1)
+| Tópico | Direção | Conteúdo |
+| :--- | :--- | :--- |
+| `irrigation/v1/telemetry/soil` | ESP32 → Broker | JSON com umidade do solo, estado e modo |
+| `irrigation/v1/telemetry/sunlight` | ESP32 → Broker | JSON com dados de incidência de calor/luz |
+| `irrigation/v1/command/pump` | Backend → ESP32 | Comandos para a bomba (`on`, `off`) |
+| `irrigation/v1/status/pump` | ESP32 → Broker | Confirmação de estado da bomba |
 
-Sensor de Calor  → ESP32 → Firmware → Wi-Fi → MQTT Broker (HiveMQ) 
-↓ 
-Painel Web (dashboard/)
-```
+## Riscos Técnicos e Mitigação
+- **Risco 1**: Corrosão rápida do sensor resistivo pelo contato constante com o solo.
+  - *Mitigação*: Utilização de sensor capacitivo e leitura periódica espaçada.
+- **Risco 2**: Desconexão constante de rede Wi-Fi ou queda do Broker.
+  - *Mitigação*: Implementação de lógica de reconexão não-bloqueante no ESP32 mantendo as regras locais ativas.
 
-## Tópicos MQTT
-|Tópico|Direção|Conteúdo|
-|---|---|---|
-|irrigacao/umidade|ESP32 → WEB|JSON com umidade, estado e modo|
-|irrigacao/status|ESP32 → WEB|Confirmação de estado da bomba|
-|irrigacao/alerta|ESP32 → WEB|Alertas (solo seco, segurança, sensor)|
-|irrigacao/bomba|ESP32 → WEB|Comandos: `on`, `off`|
-
-## Primeiro risco técnico
-- **Risco**: Sensor resistivo pode corroer rapidamente devido ao contato constante com solo úmido, comprometendo a leitura.
-
-## Como executar?
+## Como Executar?
 ### 1. Firmware (ESP32)
 * **Pré-requisitos**:
-  * Arduino IDE 2.x com suporte a ESP32
-  * Bibliotecas `PubSubClient` e `ArduinoJson` (instalar via Gerenciar Bibliotecas)
+  * Arduino IDE 2.x com suporte a ESP32.
+  * Bibliotecas `PubSubClient` e `ArduinoJson`.
 * **Passos**:
-  * Abrir `firmware\irrigacao.ino` na IDE do Arduino
-  * Editar linhas:
+  * Abrir o código na IDE do Arduino.
+  * Configurar as credenciais de rede (`WIFI_SSID` e `WIFI_PASSWORD`).
+  * Selecionar a placa `ESP32 Dev Module` e fazer o upload.
+
+### 2. Orquestração e Backend (Docker Compose)
+* **Pré-requisitos**: Docker e Docker Compose instalados.
+* **Passos**:
+  * Na raiz do projeto, executar o comando:
+    ```bash
+    docker-compose up --build
     ```
-    const char* WIFI_SSID = "wifi";
-    const char* WIFI_PASSWORD = "senha";
-    ```
-  * Selecionar placa `ESP32 Dev Module`
-  * Selecionar porta COM correta
-  * Fazer upload do código (`Ctrl + U`)
-  * Abrir *monitor serial* (115200 baud) para acompanhar logs
-
-### 2. Painel Web
-* Abrir arquivo `dashboard\index.html` diretamente no navegador
-  * O painel conecta automaticamente ao broker público HiveMQ via WebSocket
-
-### 3. Testar fluxo completo
-* ESP32 ligado e conectado → Logs aparecem no monitor serial
-* Abrir `dashboard\index.html` → Painel conecta ao MQTT
-* Aguardar leituras chegarem (de 5 em 5 segundos)
-* Testar botões (irrigar agora, parar)
-* Verificar confirmações de estado no painel
-
-## Broker MQTT
-* Broker público utilizado: [broker.hivemq.com](broker.hivemq.com)
-* Firmware porta: 1883 TCP
-* Painel web: 8000 (WebSocket)
 
 ## Estrutura do Repositório
-```
 irrigacao-iot/
-├── back /
-│ └── server.js 
-├── firmware/
-│ ├── irrigacao.ino # Código principal do ESP32
-│ └── libraries.txt # Bibliotecas necessárias
-├── front/
-│ └── index.html # Painel web de monitoramento e controle
-├── docs/
-│ └── esquema_conexoes.md # Diagrama de pinos e conexões
+├── back/               # API Backend e regras de negócio
+├── firmware/           # Código principal do ESP32 e bibliotecas
+├── front/              # Painel web de monitoramento e controle
+├── docs/               # Documentação, diagramas e esquemas elétricos
+├── docker-compose.yml  # Orquestração de containers
 └── README.md
-```
 
 ## Segurança
-* Usar apenas baixa tensão (3,3V do ESP32)
-* Nunca conectar à rede elétrica residencial
-* Manter água distante da placa e do cabo USB
+* Operação em baixa tensão (3.3V / 5V do ESP32 e fontes dedicadas).
+* Isolamento de cargas indutivas através de módulos de relé com optoacoplador.
+* Credenciais sensíveis protegidas por variáveis de ambiente.
 
-## Gestão de atividades
-* [Trello](https://trello.com/b/UaGTBRzA/iotirrigation)
+## Gestão de Atividades
+* [Trello do Projeto](https://trello.com/b/UaGTBRzA/iotirrigation)

@@ -1,0 +1,38 @@
+# Orquestracao do projeto IoT Irrigation (R12).
+#
+# O banco e o broker MQTT sao externos (Supabase e HiveMQ), entao este compose
+# sobe apenas os servicos proprios do projeto: o backend FastAPI e o painel web
+# estatico. Configure back/.env antes de subir (copie de back/.env.example).
+
+services:
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    image: iot-irrigation-backend
+    container_name: iot-irrigation-backend
+    env_file:
+      - ./back/.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: iot-irrigation-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5500:80"
+    restart: unless-stopped
+    volumes:
+      - ./front/index.html:/usr/share/nginx/html/index.html:ro
+      - ./front/styles.css:/usr/share/nginx/html/styles.css:ro
+      - ./front/config.js:/usr/share/nginx/html/config.js:ro
+      - ./front/dist:/usr/share/nginx/html/dist:ro

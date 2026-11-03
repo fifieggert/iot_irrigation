@@ -3,9 +3,10 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.pytest_cache/
 
 # Variaveis de ambiente (contem credenciais)
-.env
+*/.env
 
 # Sistema
 .DS_Store

@@ -5,17 +5,29 @@ const LIMIAR_LIGA = 30;
 const LIMIAR_DESLIGA = 60;
 const INTERVALO_MS = 5_000;
 const SEM_SINAL_MS = 15_000;
+const TOKEN_KEY = "irrigacao_token";
 
+// Telemetria de solo no contrato v1 (/api/v1/telemetry/soil/history).
 interface Telemetria {
   umidade: number;
   estado_bomba: string;
   modo: string | null;
-  timestamp: string;
+  created_at: string;
 }
 
-interface Alerta {
-  mensagem: string;
-  timestamp: string;
+// Log/alerta no contrato v1 (/api/v1/logs).
+interface Log {
+  tipo: string;
+  descricao: string;
+  origem: string | null;
+  created_at: string;
+}
+
+interface LogPage {
+  total: number;
+  limit: number;
+  offset: number;
+  items: Log[];
 }
 
 type Comando = "on" | "off" | "auto";
@@ -40,15 +52,54 @@ const app = document.querySelector<HTMLElement>(".app")!;
 const botoes = [$("btnIrrigar"), $("btnParar"), $("btnAuto")] as HTMLButtonElement[];
 let temLeitura = false;
 
-async function api<T>(caminho: string, init?: RequestInit): Promise<T> {
-  const resposta = await fetch(API_URL + caminho, init).catch(() => {
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+async function api<T>(caminho: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const resposta = await fetch(API_URL + caminho, { ...init, headers }).catch(() => {
     throw new Error("Não foi possível falar com a API");
   });
   if (!resposta.ok) {
     const corpo = await resposta.json().catch(() => null);
-    throw new Error(typeof corpo?.detail === "string" ? corpo.detail : `Erro ${resposta.status} da API`);
+    throw new Error(
+      typeof corpo?.detail === "string" ? corpo.detail : `Erro ${resposta.status} da API`,
+    );
   }
-  return resposta.json();
+  // 204/empty-safe.
+  return resposta.status === 204 ? (undefined as T) : resposta.json();
+}
+
+// Login OAuth2 (campos username/password em form-urlencoded).
+async function login(email: string, senha: string): Promise<void> {
+  const body = new URLSearchParams({ username: email, password: senha });
+  const resposta = await fetch(`${API_URL}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!resposta.ok) throw new Error("E-mail ou senha inválidos");
+  const { access_token } = (await resposta.json()) as { access_token: string };
+  localStorage.setItem(TOKEN_KEY, access_token);
+}
+
+async function garantirLogin(): Promise<boolean> {
+  if (getToken()) return true;
+  const email = window.prompt("E-mail de acesso ao painel:");
+  if (!email) return false;
+  const senha = window.prompt("Senha:");
+  if (!senha) return false;
+  try {
+    await login(email, senha);
+    return true;
+  } catch (erro) {
+    avisar((erro as Error).message);
+    return false;
+  }
 }
 
 function avisar(mensagem: string | null): void {
@@ -65,7 +116,7 @@ function definirStatus(nivel: keyof typeof STATUS): void {
 function mostrarLeitura(leitura: Telemetria): void {
   const umidade = Math.round(leitura.umidade);
   const ligada = leitura.estado_bomba === "on";
-  const semSinal = Date.now() - Date.parse(leitura.timestamp) > SEM_SINAL_MS;
+  const semSinal = Date.now() - Date.parse(leitura.created_at) > SEM_SINAL_MS;
   const nivel = umidade <= LIMIAR_LIGA ? "seco" : umidade < LIMIAR_DESLIGA ? "medio" : "ok";
 
   app.dataset.nivel = semSinal ? "sem-sinal" : nivel;
@@ -74,21 +125,24 @@ function mostrarLeitura(leitura: Telemetria): void {
   $("valor").textContent = `${umidade}%`;
   $("barraPreenchimento").style.width = `${Math.max(0, Math.min(100, umidade))}%`;
   $("barra").setAttribute("aria-valuenow", String(umidade));
-  $("bombaModo").textContent = `Bomba ${ligada ? "ligada" : "desligada"} · Modo ${leitura.modo === "auto" ? "automático" : "manual"}`;
+  $("bombaModo").textContent = `Bomba ${ligada ? "ligada" : "desligada"} · Modo ${
+    leitura.modo === "auto" ? "automático" : "manual"
+  }`;
 }
 
-function mostrarAlertas(alertas: Alerta[]): void {
-  $("semAlertas").hidden = alertas.length > 0;
+function mostrarAlertas(logs: Log[]): void {
+  $("semAlertas").hidden = logs.length > 0;
 
   $("alertas").replaceChildren(
-    ...alertas.map((alerta) => {
-      // O backend grava o alerta como "[tipo] mensagem"
-      const [, tipo = "", texto = alerta.mensagem] = /^\[([^\]]*)\]\s*(.*)$/.exec(alerta.mensagem) ?? [];
+    ...logs.map((log) => {
+      // O backend grava a descricao do alerta como "[tipo] mensagem".
+      const [, tipo = "", texto = log.descricao] =
+        /^\[([^\]]*)\]\s*(.*)$/.exec(log.descricao) ?? [];
       const rotulo = ALERTAS[tipo] ?? { texto: tipo.replace(/_/g, " "), tom: "" };
 
       const hora = document.createElement("time");
-      hora.dateTime = alerta.timestamp;
-      hora.textContent = new Date(alerta.timestamp).toLocaleString("pt-BR");
+      hora.dateTime = log.created_at;
+      hora.textContent = new Date(log.created_at).toLocaleString("pt-BR");
 
       const etiqueta = document.createElement("span");
       etiqueta.className = `alert-tipo ${rotulo.tom}`;
@@ -103,16 +157,17 @@ function mostrarAlertas(alertas: Alerta[]): void {
 
 async function atualizar(): Promise<void> {
   try {
-    const [[leitura], alertas] = await Promise.all([
-      api<Telemetria[]>("/api/telemetry?limit=1"),
-      api<Alerta[]>("/api/alerts?limit=8"),
+    const [leituras, alertas] = await Promise.all([
+      api<Telemetria[]>("/api/v1/telemetry/soil/history?limit=1"),
+      api<LogPage>("/api/v1/logs?tipo=ALERT&limit=8"),
     ]);
     avisar(null);
+    const leitura = leituras[0];
     if (leitura) {
       temLeitura = true;
       mostrarLeitura(leitura);
     }
-    mostrarAlertas(alertas);
+    mostrarAlertas(alertas.items);
   } catch (erro) {
     avisar(`${(erro as Error).message} (${API_URL}). Tentando novamente…`);
     if (!temLeitura) {
@@ -124,14 +179,20 @@ async function atualizar(): Promise<void> {
 }
 
 async function enviar(comando: Comando): Promise<void> {
+  if (!(await garantirLogin())) return;
+
   botoes.forEach((botao) => (botao.disabled = true));
   try {
-    await api("/api/bomba", {
+    await api("/api/v1/command/pump", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ comando }),
     });
   } catch (erro) {
+    // Token expirado/invalido: limpa e pede login de novo na proxima acao.
+    if ((erro as Error).message.includes("expirado") || (erro as Error).message.includes("inválid")) {
+      localStorage.removeItem(TOKEN_KEY);
+    }
     avisar((erro as Error).message);
   } finally {
     botoes.forEach((botao) => (botao.disabled = false));

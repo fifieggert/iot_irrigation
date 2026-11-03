@@ -15,22 +15,25 @@ import time
 
 import paho.mqtt.client as mqtt
 
-TOPICO_BASE = "irrigacao/g2fifi"
+TOPICO_BASE = "g2fifi/irrigation/v1"
 BROKER = "broker.hivemq.com"
 PORTA = 1883
 
-T_UMIDADE = f"{TOPICO_BASE}/umidade"
-T_STATUS = f"{TOPICO_BASE}/status"
-T_ALERTA = f"{TOPICO_BASE}/alerta"
-T_BOMBA = f"{TOPICO_BASE}/bomba"
+T_SOIL = f"{TOPICO_BASE}/telemetry/soil"
+T_SUNLIGHT = f"{TOPICO_BASE}/telemetry/sunlight"
+T_STATUS = f"{TOPICO_BASE}/status/pump"
+T_ALERTA = f"{TOPICO_BASE}/alert"
+T_BOMBA = f"{TOPICO_BASE}/command/pump"
 
 # Mesmos parametros do firmware
 LIMIAR_LIGA = 30
 LIMIAR_DESLIGA = 60
 INTERVALO_LEITURA = 5.0
+INTERVALO_LUZ = 15.0
 TEMPO_MAX_BOMBA = 30.0
 
 umidade = 45.0
+luminosidade = 65.0
 bomba_ligada = False
 modo_auto = True
 bomba_ligada_em = 0.0
@@ -99,7 +102,7 @@ def encerrar(signum, frame):
 
 
 def main() -> None:
-    global umidade, alerta_solo_seco
+    global umidade, luminosidade, alerta_solo_seco
 
     signal.signal(signal.SIGINT, encerrar)
 
@@ -112,6 +115,7 @@ def main() -> None:
 
     print("Simulador rodando. Ctrl+C para parar.\n")
     proxima_leitura = 0.0
+    proxima_luz = 0.0
 
     while rodando:
         t = agora()
@@ -150,8 +154,20 @@ def main() -> None:
                 "estado": "on" if bomba_ligada else "off",
                 "modo": "auto" if modo_auto else "manual",
             }
-            client.publish(T_UMIDADE, json.dumps(leitura))
+            client.publish(T_SOIL, json.dumps(leitura))
             print(f"[TELEMETRIA] {leitura}")
+
+        if t >= proxima_luz:
+            proxima_luz = t + INTERVALO_LUZ
+            # Luminosidade oscilando lentamente (0-100).
+            luminosidade += random.uniform(-5.0, 5.0)
+            luminosidade = max(0.0, min(100.0, luminosidade))
+            leitura_luz = {
+                "luminosidade": round(luminosidade),
+                "raw": round((luminosidade / 100) * 4095),
+            }
+            client.publish(T_SUNLIGHT, json.dumps(leitura_luz))
+            print(f"[LUZ] {leitura_luz}")
 
         time.sleep(0.2)
 

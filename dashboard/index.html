@@ -94,6 +94,13 @@
     </div>
 
     <div class="card">
+      <div class="rotulo">Luminosidade</div>
+      <div class="valor"><span id="luminosidade">--</span><span>%</span></div>
+      <div class="barra"><i id="barraLuz" style="background:#dca038"></i></div>
+      <div class="meta" id="leituraLuz">Aguardando primeira leitura…</div>
+    </div>
+
+    <div class="card">
       <div class="rotulo">Bomba (LED)</div>
       <div class="estado">
         <div class="luz" id="luz"></div>
@@ -128,7 +135,8 @@
 //  CONFIGURAÇÃO - precisa bater com o firmware do ESP32
 // ============================================================
 
-const TOPICO_BASE = "irrigacao/g2fifi";
+// Contrato MQTT v1 (ver CONTRATOS.md)
+const TOPICO_BASE = "g2fifi/irrigation/v1";
 
 // Detecção automática da porta:
 //  - página aberta em https (GitHub Pages) -> WebSocket seguro (wss, 8884)
@@ -139,10 +147,11 @@ const URL_BROKER = SEGURO
   ? "wss://broker.hivemq.com:8884/mqtt"
   : "ws://broker.hivemq.com:8000/mqtt";
 
-const T_UMIDADE = TOPICO_BASE + "/umidade";
-const T_STATUS  = TOPICO_BASE + "/status";
-const T_ALERTA  = TOPICO_BASE + "/alerta";
-const T_BOMBA   = TOPICO_BASE + "/bomba";
+const T_UMIDADE = TOPICO_BASE + "/telemetry/soil";
+const T_LUZ     = TOPICO_BASE + "/telemetry/sunlight";
+const T_STATUS  = TOPICO_BASE + "/status/pump";
+const T_ALERTA  = TOPICO_BASE + "/alert";
+const T_BOMBA   = TOPICO_BASE + "/command/pump";
 
 const TEMPO_SEM_DADOS = 15000; // avisa se o ESP32 sumir por 15 s
 
@@ -186,7 +195,7 @@ function conectar() {
   cliente.on("connect", () => {
     statusConexao("Conectado ao broker", "on");
     travarBotoes(false);
-    cliente.subscribe([T_UMIDADE, T_STATUS, T_ALERTA], err => {
+    cliente.subscribe([T_UMIDADE, T_LUZ, T_STATUS, T_ALERTA], err => {
       if (err) statusConexao("Falha ao assinar tópicos", "off");
     });
   });
@@ -201,6 +210,7 @@ function conectar() {
     catch { return; } // ignora mensagem que não for JSON
 
     if (topico === T_UMIDADE) tratarTelemetria(dados);
+    else if (topico === T_LUZ) tratarLuz(dados);
     else if (topico === T_STATUS) tratarStatus(dados);
     else if (topico === T_ALERTA) tratarAlerta(dados);
   });
@@ -222,6 +232,14 @@ function tratarTelemetria(d) {
 
   if (d.estado) pintarBomba(d.estado);
   if (d.modo)   el("modo").textContent = d.modo === "auto" ? "automático" : "manual";
+}
+
+function tratarLuz(d) {
+  if (typeof d.luminosidade !== "number") return;
+  el("luminosidade").textContent = d.luminosidade;
+  el("barraLuz").style.width = Math.max(0, Math.min(100, d.luminosidade)) + "%";
+  el("leituraLuz").textContent =
+    "Atualizado às " + agora() + (d.raw !== undefined ? "  ·  ADC " + d.raw : "");
 }
 
 function tratarStatus(d) {

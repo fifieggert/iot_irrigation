@@ -37,15 +37,17 @@ Prefixo: `g2fifi/irrigation/v1`. Contrato completo em [`CONTRATOS.md`](CONTRATOS
 | Tópico | Direção | Conteúdo |
 | :--- | :--- | :--- |
 | `g2fifi/irrigation/v1/telemetry/soil` | ESP32 → Broker | JSON com umidade do solo, estado e modo |
-| `g2fifi/irrigation/v1/telemetry/sunlight` | ESP32 → Broker | JSON com luminosidade (proposta N3) |
+| `g2fifi/irrigation/v1/telemetry/sunlight` | ESP32 → Broker | JSON com luminosidade (LDR no GPIO35) |
 | `g2fifi/irrigation/v1/command/pump` | Backend → ESP32 | Comandos para a bomba (`on`, `off`, `auto`) |
 | `g2fifi/irrigation/v1/status/pump` | ESP32 → Broker | Estado da bomba, modo e origem; LWT `online:false` |
 | `g2fifi/irrigation/v1/alert` | ESP32 → Broker | Alertas (solo seco, segurança, sensor) |
 
 ## Diagramas
-- [Arquitetura](docs/diagramas/arquitetura.png)
-- [Fluxograma do firmware](docs/diagramas/firmware_fluxograma.png)
-- [Esquema elétrico](docs/diagramas/esquema_eletrico.png) e [mapa de pinos](docs/hardware/pinout_map.md)
+- [Arquitetura](docs/arquitetura.png)
+- [Fluxograma do firmware](docs/firmware_fluxograma.png)
+- [Esquema elétrico](docs/esquema_eletrico.png) e [mapa de pinos](docs/diagrama_final_conexoes_e_pinos.md)
+- [MER do banco](docs/MER.png)
+- [Simulação Wokwi](docs/rascunhowokwi.json) (ESP32 + potenciômetro de umidade + LDR + LED da bomba)
 
 ## Riscos Técnicos e Mitigação
 - **Risco 1**: Corrosão rápida do sensor resistivo pelo contato constante com o solo.
@@ -64,7 +66,7 @@ Prefixo: `g2fifi/irrigation/v1`. Contrato completo em [`CONTRATOS.md`](CONTRATOS
   * Bibliotecas `PubSubClient` e `ArduinoJson`.
 * **Passos**:
   * Abrir o código na IDE do Arduino.
-  * Copiar `firmware/irrigacao/secrets.h.example` para `secrets.h` e preencher `WIFI_SSID` e `WIFI_PASSWORD` (o arquivo não vai para o Git).
+  * Copiar `firmware/irrigacao/secrets.h.example` para `secrets.h` e preencher `WIFI_SSID` e `WIFI_PASSWORD` (o arquivo não vai para o Git). Sem `secrets.h`, o firmware usa a rede `Wokwi-GUEST` do simulador.
   * Selecionar a placa `ESP32 Dev Module` e fazer o upload.
 
 ### 2. Orquestração e Backend (Docker Compose)
@@ -84,7 +86,7 @@ irrigacao-iot/
 ├── firmware/           # Código principal do ESP32 e bibliotecas
 ├── front/              # Painel web de monitoramento e controle
 ├── dashboard/          # Painel MQTT direto (legado da N1)
-├── docs/               # diagramas/ (arquitetura, fluxograma, esquema), hardware/pinout_map.md
+├── docs/               # diagramas (arquitetura, fluxograma, esquema, MER), mapa de pinos e Wokwi
 ├── CONTRATOS.md        # Contrato MQTT v1
 ├── docker-compose.yml  # Orquestração de containers
 └── README.md
@@ -113,8 +115,9 @@ irrigacao-iot/
 * Isolamento de cargas indutivas através de módulos de relé com optoacoplador.
 * Credenciais sensíveis fora do Git: `back/.env` e `firmware/irrigacao/secrets.h` (modelos `.env.example` e `secrets.h.example`).
 * Firmware: relé desligado antes de tudo no boot, trava de 30 s com bloqueio de 60 s que recusa o comando `on`, estado seguro (bomba desligada) com sensor inválido e timeout de 10 min no modo manual.
+* API: login com JWT; comando da bomba e alteração de configuração exigem token.
 * Reconexão Wi-Fi/MQTT com backoff exponencial (1 s a 60 s).
-* Pendente (N3): autenticação nos endpoints da API e firmware do sensor de luz (GPIO35).
+* Pendente (N3): TLS na conexão do ESP32 com o broker (o backend já suporta a porta 8883).
 
 ## Gestão de Atividades
 * [Trello do Projeto](https://trello.com/b/UaGTBRzA/iotirrigation)

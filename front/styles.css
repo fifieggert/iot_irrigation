@@ -227,6 +227,47 @@ body {
   color: var(--muted);
 }
 
+/* ---------- Luminosidade ---------- */
+
+.light {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.light-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.light-value {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.light-status {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: right;
+}
+
+.bar-light { margin-bottom: 10px; }
+.bar-light .bar-fill { background: var(--amber); }
+.bar-light[data-pouca-luz="true"] .bar-fill { background: var(--grey); }
+
+.light-meta { margin: 0; font-size: 13px; color: var(--muted); }
+
 /* ---------- Alertas ---------- */
 
 .alerts {

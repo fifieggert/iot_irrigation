@@ -31,12 +31,17 @@ LIMIAR_DESLIGA = 60
 INTERVALO_LEITURA = 5.0
 INTERVALO_LUZ = 15.0
 TEMPO_MAX_BOMBA = 30.0
+BLOQUEIO_SEGURANCA = 60.0
+TIMEOUT_MANUAL = 600.0
 
 umidade = 45.0
 luminosidade = 65.0
 bomba_ligada = False
 modo_auto = True
 bomba_ligada_em = 0.0
+manual_desde = 0.0
+bloqueado = False
+bloqueio_inicio = 0.0
 alerta_solo_seco = False
 rodando = True
 
@@ -50,6 +55,7 @@ def publicar_status(client, origem: str) -> None:
         "bomba": "on" if bomba_ligada else "off",
         "modo": "auto" if modo_auto else "manual",
         "origem": origem,
+        "bloqueado": bloqueado,
         "online": True,
     }
     client.publish(T_STATUS, json.dumps(payload))
@@ -78,17 +84,37 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
     publicar_status(client, "boot")
 
 
+def entrar_modo_manual() -> None:
+    global modo_auto, manual_desde
+    modo_auto = False
+    manual_desde = agora()
+
+
 def on_message(client, userdata, msg):
     global modo_auto
     comando = msg.payload.decode("utf-8", errors="replace").strip().lower()
     print(f"[COMANDO] {comando}")
 
     if comando == "on":
-        modo_auto = False
-        set_bomba(client, True, "manual")
+        # Igual ao firmware: o bloqueio de seguranca recusa o comando remoto.
+        if bloqueado:
+            publicar_alerta(
+                client, "seguranca",
+                "Comando on recusado: bomba em bloqueio de seguranca"
+            )
+            publicar_status(client, "recusado")
+            return
+        entrar_modo_manual()
+        if bomba_ligada:
+            publicar_status(client, "manual")
+        else:
+            set_bomba(client, True, "manual")
     elif comando == "off":
-        modo_auto = False
-        set_bomba(client, False, "manual")
+        entrar_modo_manual()
+        if bomba_ligada:
+            set_bomba(client, False, "manual")
+        else:
+            publicar_status(client, "manual")
     elif comando == "auto":
         modo_auto = True
         publicar_status(client, "auto")
@@ -102,7 +128,7 @@ def encerrar(signum, frame):
 
 
 def main() -> None:
-    global umidade, luminosidade, alerta_solo_seco
+    global umidade, luminosidade, alerta_solo_seco, bloqueado, bloqueio_inicio, modo_auto
 
     signal.signal(signal.SIGINT, encerrar)
 
@@ -122,11 +148,23 @@ def main() -> None:
 
         # Trava de seguranca, igual ao firmware
         if bomba_ligada and t - bomba_ligada_em >= TEMPO_MAX_BOMBA:
+            bloqueado = True
+            bloqueio_inicio = t
             set_bomba(client, False, "seguranca")
             publicar_alerta(
                 client, "seguranca",
                 "Bomba excedeu o tempo maximo e foi desligada automaticamente"
             )
+
+        if bloqueado and t - bloqueio_inicio >= BLOQUEIO_SEGURANCA:
+            bloqueado = False
+            print("[SEGURANCA] Bloqueio liberado.")
+            publicar_status(client, "seguranca")
+
+        if not modo_auto and t - manual_desde >= TIMEOUT_MANUAL:
+            modo_auto = True
+            print("[MODO] Timeout do modo manual, voltando para automatico.")
+            publicar_status(client, "timeout")
 
         if t >= proxima_leitura:
             proxima_leitura = t + INTERVALO_LEITURA
@@ -142,7 +180,7 @@ def main() -> None:
             elif umidade > LIMIAR_DESLIGA and alerta_solo_seco:
                 alerta_solo_seco = False
 
-            if modo_auto:
+            if modo_auto and not bloqueado:
                 if not bomba_ligada and umidade <= LIMIAR_LIGA:
                     set_bomba(client, True, "auto")
                 elif bomba_ligada and umidade >= LIMIAR_DESLIGA:

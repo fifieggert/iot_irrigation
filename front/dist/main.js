@@ -4,6 +4,7 @@ const LIMIAR_LIGA = 30;
 const LIMIAR_DESLIGA = 60;
 const INTERVALO_MS = 5_000;
 const SEM_SINAL_MS = 15_000;
+const SEM_SINAL_LUZ_MS = 45_000; // firmware publica luz a cada 15 s
 const TOKEN_KEY = "irrigacao_token";
 const STATUS = {
     "sem-sinal": ["i-offline", "Sem leituras do ESP32"],
@@ -17,6 +18,7 @@ const ALERTAS = {
     seguranca: { texto: "Segurança", tom: "critico" },
     sensor: { texto: "Sensor", tom: "critico" },
     comando: { texto: "Comando", tom: "" },
+    sol: { texto: "Falta de sol", tom: "aviso" },
 };
 const $ = (id) => document.getElementById(id);
 const app = document.querySelector(".app");
@@ -92,11 +94,32 @@ function mostrarLeitura(leitura) {
     $("barra").setAttribute("aria-valuenow", String(umidade));
     $("bombaModo").textContent = `Bomba ${ligada ? "ligada" : "desligada"} · Modo ${leitura.modo === "auto" ? "automático" : "manual"}`;
 }
+function mostrarLuz(luz, cfg) {
+    const limiar = cfg?.limiar_luminosidade ?? 20;
+    const dias = cfg?.dias_sem_sol_alerta ?? 3;
+    $("luzMarca").style.left = `${limiar}%`;
+    $("luzMeta").textContent = `Alerta após ${dias} dia(s) com média abaixo de ${limiar}%.`;
+    if (!luz)
+        return;
+    const valor = Math.round(luz.luminosidade);
+    const semSinal = Date.now() - Date.parse(luz.created_at) > SEM_SINAL_LUZ_MS;
+    const poucaLuz = valor < limiar;
+    $("luzValor").textContent = `${valor}%`;
+    $("luzPreenchimento").style.width = `${Math.max(0, Math.min(100, valor))}%`;
+    $("luzBarra").setAttribute("aria-valuenow", String(valor));
+    $("luzBarra").dataset.poucaLuz = String(poucaLuz);
+    $("luzStatus").textContent = semSinal
+        ? "Sem leituras recentes"
+        : poucaLuz
+            ? "Pouca luz"
+            : "Luz adequada";
+}
 function mostrarAlertas(logs) {
     $("semAlertas").hidden = logs.length > 0;
     $("alertas").replaceChildren(...logs.map((log) => {
         // O backend grava a descricao do alerta como "[tipo] mensagem".
-        const [, tipo = "", texto = log.descricao] = /^\[([^\]]*)\]\s*(.*)$/.exec(log.descricao) ?? [];
+        // Alertas de falta de sol vem da rotina do backend (tipo SUNLIGHT).
+        const [, tipo = log.tipo === "SUNLIGHT" ? "sol" : "", texto = log.descricao] = /^\[([^\]]*)\]\s*(.*)$/.exec(log.descricao) ?? [];
         const rotulo = ALERTAS[tipo] ?? { texto: tipo.replace(/_/g, " "), tom: "" };
         const hora = document.createElement("time");
         hora.dateTime = log.created_at;
@@ -111,9 +134,12 @@ function mostrarAlertas(logs) {
 }
 async function atualizar() {
     try {
-        const [leituras, alertas] = await Promise.all([
+        const [leituras, alertas, alertasSol, luz, cfg] = await Promise.all([
             api("/api/v1/telemetry/soil/history?limit=1"),
             api("/api/v1/logs?tipo=ALERT&limit=8"),
+            api("/api/v1/logs?tipo=SUNLIGHT&limit=8"),
+            api("/api/v1/telemetry/sunlight/latest"),
+            api("/api/v1/config").catch(() => null),
         ]);
         avisar(null);
         const leitura = leituras[0];
@@ -121,7 +147,10 @@ async function atualizar() {
             temLeitura = true;
             mostrarLeitura(leitura);
         }
-        mostrarAlertas(alertas.items);
+        mostrarLuz(luz, cfg);
+        mostrarAlertas([...alertas.items, ...alertasSol.items]
+            .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+            .slice(0, 8));
     }
     catch (erro) {
         avisar(`${erro.message} (${API_URL}). Tentando novamente…`);

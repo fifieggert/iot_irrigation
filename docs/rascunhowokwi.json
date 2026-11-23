@@ -18,6 +18,13 @@
       "attrs": { "value": "2048" }
     },
     {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr1",
+      "top": -150,
+      "left": 120,
+      "attrs": {}
+    },
+    {
       "type": "wokwi-resistor",
       "id": "r1",
       "top": 130,
@@ -39,6 +46,10 @@
     [ "pot1:VCC", "esp:3V3", "red", [ "v0" ] ],
     [ "pot1:GND", "esp:GND.2", "black", [ "v0" ] ],
     [ "pot1:SIG", "esp:D34", "green", [ "v0" ] ],
+
+    [ "ldr1:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "ldr1:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "ldr1:AO", "esp:D35", "orange", [ "v0" ] ],
 
     [ "esp:D23", "r1:1", "blue", [ "v0" ] ],
     [ "r1:2", "led1:A", "blue", [ "v0" ] ],

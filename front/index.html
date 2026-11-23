@@ -25,6 +25,11 @@
       <symbol id="i-info" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
       </symbol>
+      <symbol id="i-sol" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>
+        <path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+      </symbol>
       <symbol id="i-offline" viewBox="0 0 24 24">
         <path d="m2 2 20 20"/>
         <path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/>
@@ -67,6 +72,22 @@
       </div>
 
       <p class="pump" id="bombaModo">Bomba -- · Modo --</p>
+    </section>
+
+    <!-- Luminosidade (sensor LDR, GPIO35) -->
+    <section class="card" aria-labelledby="tLuz">
+      <h2 class="card-title" id="tLuz">Luminosidade</h2>
+      <div class="light">
+        <svg class="light-icon" aria-hidden="true"><use href="#i-sol"/></svg>
+        <span class="light-value" id="luzValor">--</span>
+        <span class="light-status" id="luzStatus">Aguardando leitura</span>
+      </div>
+      <div class="bar bar-light" id="luzBarra" role="progressbar" aria-labelledby="tLuz"
+           aria-valuemin="0" aria-valuemax="100">
+        <div class="bar-fill" id="luzPreenchimento"></div>
+        <span class="bar-mark" id="luzMarca" style="left:20%" title="Limiar de pouca luz"></span>
+      </div>
+      <p class="light-meta" id="luzMeta">Alerta após 3 dia(s) com média abaixo de 20%.</p>
     </section>
 
     <!-- Alertas -->

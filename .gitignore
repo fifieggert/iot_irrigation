@@ -7,6 +7,10 @@ venv/
 
 # Variaveis de ambiente (contem credenciais)
 */.env
+.env
+
+# Credenciais do firmware
+firmware/irrigacao/secrets.h
 
 # Sistema
 .DS_Store

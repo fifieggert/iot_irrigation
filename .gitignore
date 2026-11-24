@@ -18,3 +18,4 @@ Thumbs.db
 
 # Node
 node_modules/
+back/.env

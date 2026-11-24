@@ -5,6 +5,26 @@
 # estatico. Configure back/.env antes de subir (copie de back/.env.example).
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: iot-irrigation-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: irrigacao
+    # Sem mapeamento de porta: o backend acessa via rede interna do compose.
+    # Para abrir no DBeaver/pgAdmin do host, descomente usando 5433:
+    # ports:
+    #   - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d irrigacao"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./back
@@ -13,6 +33,9 @@ services:
     container_name: iot-irrigation-backend
     env_file:
       - ./back/.env
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -36,3 +59,6 @@ services:
       - ./front/styles.css:/usr/share/nginx/html/styles.css:ro
       - ./front/config.js:/usr/share/nginx/html/config.js:ro
       - ./front/dist:/usr/share/nginx/html/dist:ro
+
+volumes:
+  pgdata:

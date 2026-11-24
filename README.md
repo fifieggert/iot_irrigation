@@ -29,18 +29,26 @@ Pessoas que cuidam de plantas e desejam monitorar remotamente a umidade do solo 
 - Regras locais de segurança e tratamento de falhas testadas.
 
 ## Arquitetura-Alvo
-- **Sensor de Umidade / Calor** → ESP32 → Firmware → Wi-Fi → MQTT Broker (HiveMQ) → Backend (API + Regras) → Banco de Dados (PostgreSQL / Supabase) → Painel Web (Dashboard).
+O sistema usa **dois ESP32**, que só se comunicam pelo broker MQTT (HiveMQ, prefixo `g2fifi/irrigation/v1`, QoS 0, sem *retain*):
+
+- **ESP32 #1 — nó sensor** ([`firmware/sensor_node/sensor_node.ino`](firmware/sensor_node/sensor_node.ino)): lê a umidade do solo (GPIO34) e a luminosidade pelo LDR (GPIO35) e publica `telemetry/soil` a cada 5 s e `telemetry/sunlight` a cada 15 s. Não decide nada e não aciona a bomba.
+- **ESP32 #2 — nó controlador** ([`firmware/controller_node/controller_node.ino`](firmware/controller_node/controller_node.ino)): assina `telemetry/soil` e `command/pump`, aplica as regras locais de segurança, aciona o relé da bomba (GPIO23) e publica `status/pump` e `alert`. Usa LWT `{"online": false}`.
+
+Fluxo:
+- Sensores → **ESP32 #1** → Wi-Fi → MQTT Broker (HiveMQ) → **ESP32 #2** → Relé → Bomba.
+- MQTT Broker → Backend (API + Regras) → Banco de Dados (PostgreSQL / Supabase) → Painel Web (Dashboard).
+- Painel Web → Backend → MQTT Broker → **ESP32 #2** (comando manual da bomba).
 
 ## Tópicos MQTT (Contrato v1)
 Prefixo: `g2fifi/irrigation/v1`. Contrato completo em [`CONTRATOS.md`](CONTRATOS.md).
 
 | Tópico | Direção | Conteúdo |
 | :--- | :--- | :--- |
-| `g2fifi/irrigation/v1/telemetry/soil` | ESP32 → Broker | JSON com umidade do solo, estado e modo |
-| `g2fifi/irrigation/v1/telemetry/sunlight` | ESP32 → Broker | JSON com luminosidade (LDR no GPIO35) |
-| `g2fifi/irrigation/v1/command/pump` | Backend → ESP32 | Comandos para a bomba (`on`, `off`, `auto`) |
-| `g2fifi/irrigation/v1/status/pump` | ESP32 → Broker | Estado da bomba, modo e origem; LWT `online:false` |
-| `g2fifi/irrigation/v1/alert` | ESP32 → Broker | Alertas (solo seco, segurança, sensor) |
+| `g2fifi/irrigation/v1/telemetry/soil` | ESP32 #1 → Broker → ESP32 #2 / Backend | JSON `{umidade, raw}` (sensor no GPIO34) |
+| `g2fifi/irrigation/v1/telemetry/sunlight` | ESP32 #1 → Broker → Backend | JSON `{luminosidade, raw}` (LDR no GPIO35) |
+| `g2fifi/irrigation/v1/command/pump` | Backend → Broker → ESP32 #2 | Comandos para a bomba (`on`, `off`, `auto`) |
+| `g2fifi/irrigation/v1/status/pump` | ESP32 #2 → Broker | Estado da bomba, modo e origem; LWT `online:false` |
+| `g2fifi/irrigation/v1/alert` | ESP32 #2 → Broker | Alertas (solo seco, segurança, sensor, comunicação) |
 
 ## Diagramas
 - [Arquitetura](docs/arquitetura.png)
@@ -49,25 +57,34 @@ Prefixo: `g2fifi/irrigation/v1`. Contrato completo em [`CONTRATOS.md`](CONTRATOS
 - [MER do banco](docs/MER.png)
 - [Simulação Wokwi](docs/rascunhowokwi.json) (ESP32 + potenciômetro de umidade + LDR + LED da bomba)
 
+> **Nota:** `arquitetura.png`, `esquema_eletrico.png` e `firmware_fluxograma.png` (e a simulação Wokwi) ainda mostram a versão antiga, com **um único ESP32**. Essas imagens serão refeitas para a arquitetura de dois ESP32. Até lá, a referência correta é o [mapa de pinos](docs/diagrama_final_conexoes_e_pinos.md) e o [`CONTRATOS.md`](CONTRATOS.md).
+
 ## Riscos Técnicos e Mitigação
 - **Risco 1**: Corrosão rápida do sensor resistivo pelo contato constante com o solo.
   - *Mitigação*: Utilização de sensor capacitivo e leitura periódica espaçada.
 - **Risco 2**: Desconexão constante de rede Wi-Fi ou queda do Broker.
-  - *Mitigação*: Reconexão não-bloqueante com backoff exponencial (1 s a 60 s) no ESP32, mantendo a regra local da bomba ativa mesmo offline.
+  - *Mitigação*: Reconexão não-bloqueante com backoff exponencial (1 s a 60 s) nos dois ESP32. Como a umidade chega ao nó controlador pelo broker, se a telemetria do nó sensor parar de chegar por 30 s o controlador entra em estado seguro (bomba desligada) e publica um alerta `comunicacao`. As travas locais (tempo máximo da bomba e timeout do modo manual) continuam valendo offline.
 - **Risco 3**: Bomba ligada por tempo excessivo ou funcionando a seco.
   - *Mitigação*: Trava no firmware: desliga após 30 s de acionamento contínuo e bloqueia novo acionamento por 60 s.
 - **Risco 4**: Broker HiveMQ público e aberto: outro grupo pode publicar nos mesmos tópicos.
   - *Mitigação*: Prefixo exclusivo do grupo (`g2fifi`) nos tópicos e, na N3, TLS e autenticação no broker.
 
 ## Como Executar?
-### 1. Firmware (ESP32)
+### 1. Firmware (dois ESP32)
+São **dois sketches para duas placas**. Cada sketch fica na própria pasta, porque a IDE do Arduino compila juntos todos os `.ino` de uma mesma pasta.
+
 * **Pré-requisitos**:
   * Arduino IDE 2.x com suporte a ESP32.
   * Bibliotecas `PubSubClient` e `ArduinoJson`.
-* **Passos**:
-  * Abrir o código na IDE do Arduino.
-  * Copiar `firmware/irrigacao/secrets.h.example` para `secrets.h` e preencher `WIFI_SSID` e `WIFI_PASSWORD` (o arquivo não vai para o Git). Sem `secrets.h`, o firmware usa a rede `Wokwi-GUEST` do simulador.
-  * Selecionar a placa `ESP32 Dev Module` e fazer o upload.
+* **ESP32 #1 — nó sensor**:
+  * Abrir `firmware/sensor_node/sensor_node.ino` na IDE do Arduino.
+  * Copiar `firmware/sensor_node/secrets.h.example` para `firmware/sensor_node/secrets.h` e preencher `WIFI_SSID` e `WIFI_PASSWORD`.
+  * Selecionar a placa `ESP32 Dev Module` e fazer o upload na placa do nó sensor.
+* **ESP32 #2 — nó controlador**:
+  * Abrir `firmware/controller_node/controller_node.ino` na IDE do Arduino.
+  * Copiar `firmware/controller_node/secrets.h.example` para `firmware/controller_node/secrets.h` e preencher `WIFI_SSID` e `WIFI_PASSWORD`.
+  * Selecionar a placa `ESP32 Dev Module` e fazer o upload na placa do nó controlador.
+* Os arquivos `secrets.h` não vão para o Git. Sem `secrets.h`, cada firmware usa a rede `Wokwi-GUEST` do simulador.
 
 ### 2. Orquestração e Backend (Docker Compose)
 * **Pré-requisitos**: Docker e Docker Compose instalados.
@@ -83,7 +100,10 @@ Prefixo: `g2fifi/irrigation/v1`. Contrato completo em [`CONTRATOS.md`](CONTRATOS
 ```
 irrigacao-iot/
 ├── back/               # API Backend e regras de negócio
-├── firmware/           # Código principal do ESP32 e bibliotecas
+├── firmware/
+│   ├── sensor_node/        # ESP32 #1: sensor_node.ino (lê sensores e publica telemetria)
+│   ├── controller_node/    # ESP32 #2: controller_node.ino (regras locais e relé da bomba)
+│   └── libraries.txt       # Bibliotecas usadas (Wokwi)
 ├── front/              # Painel web de monitoramento e controle
 ├── dashboard/          # Painel MQTT direto (legado da N1)
 ├── docs/               # diagramas (arquitetura, fluxograma, esquema, MER), mapa de pinos e Wokwi
@@ -113,8 +133,9 @@ irrigacao-iot/
 ## Segurança
 * Operação em baixa tensão (3.3V / 5V do ESP32 e fontes dedicadas).
 * Isolamento de cargas indutivas através de módulos de relé com optoacoplador.
-* Credenciais sensíveis fora do Git: `back/.env` e `firmware/irrigacao/secrets.h` (modelos `.env.example` e `secrets.h.example`).
-* Firmware: relé desligado antes de tudo no boot, trava de 30 s com bloqueio de 60 s que recusa o comando `on`, estado seguro (bomba desligada) com sensor inválido e timeout de 10 min no modo manual.
+* Credenciais sensíveis fora do Git: `back/.env` e os `secrets.h` de cada sketch (`firmware/sensor_node/secrets.h` e `firmware/controller_node/secrets.h`) estão no `.gitignore`. Os modelos sem segredos reais são `back/.env.example` e `secrets.h.example`.
+* O `back/.env` chegou a ser versionado em commits antigos. Ele já foi removido do controle de versão, mas as credenciais que estavam nele devem ser consideradas expostas e precisam ser trocadas.
+* Firmware (nó controlador): relé desligado antes de tudo no boot, trava de 30 s com bloqueio de 60 s que recusa o comando `on`, estado seguro (bomba desligada) com sensor inválido ou quando a telemetria do nó sensor para de chegar por 30 s, e timeout de 10 min no modo manual.
 * API: login com JWT; comando da bomba e alteração de configuração exigem token.
 * Reconexão Wi-Fi/MQTT com backoff exponencial (1 s a 60 s).
 * Pendente (N3): TLS na conexão do ESP32 com o broker (o backend já suporta a porta 8883).
